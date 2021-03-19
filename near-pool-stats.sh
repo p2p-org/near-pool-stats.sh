@@ -8,13 +8,33 @@ die() {
 ACCOUNT_POOL="$1"
 ACCOUNTS_OWN="$2"
 
+near_view() {
+	local CONTRACT_ID="$1"
+	local CONTRACT_METHOD="$2"
+	local CONTRACT_ARGS=`printf '%s' "$3" | base64`
+	local REQUEST_PARAMS=`printf '
+	{
+		"jsonrpc": "2.0",
+		"id": "dontcare",
+		"method": "query",
+		"params": {
+			"request_type": "call_function",
+			"finality": "final",
+			"account_id": "%s",
+			"method_name": "%s",
+			"args_base64": "%s"
+		}
+	}
+	' "$CONTRACT_ID" "$CONTRACT_METHOD" "$CONTRACT_ARGS"`
+	curl -s -X POST \
+     		-H 'Content-Type: application/json' \
+     		-d "$REQUEST_PARAMS" \
+     		https://rpc.mainnet.near.org \
+			| jq -r ".result.result | implode"
+}
+
 get_accounts() {
-	# This requires a modified version of `near-cli` that outputs JSON.
-	# Also it must be based on the latest upstream version to avoid the 
-	# "new version available" message in the end.
-	near view "$ACCOUNT_POOL" get_accounts \
-		'{"limit": 100, "from_index": 0}' \
-		| sed -e '1d'
+	near_view "$ACCOUNT_POOL" get_accounts '{"limit": 100, "from_index": 0}'
 }
 
 is_lockup() {
@@ -22,7 +42,7 @@ is_lockup() {
 }
 
 lockup_owner() {
-	near view "$1" get_owner_account_id | sed -e '1d' | jq -r ''
+	near_view "$1" get_owner_account_id | jq -r .
 }
 
 is_foundation() {
@@ -39,7 +59,7 @@ is_own() {
 	printf '%s' "$ACCOUNTS_OWN" | grep -q "$1"
 }
 
-ACCOUNTS_JSON=$(get_accounts)
+ACCOUNTS_JSON=`get_accounts`
 accounts() {
        printf '%s' "$ACCOUNTS_JSON"
 }
