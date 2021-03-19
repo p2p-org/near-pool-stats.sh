@@ -89,15 +89,15 @@ for i in `seq 1 $ACCOUNT_COUNT`; do
 		continue
 	fi
 
-	TOTAL_BALANCE=`printf '%s + %s\n' "$TOTAL_BALANCE" "$ACCBAL" | bc`
-	DELEG_COUNT=`expr $DELEG_COUNT + 1`
-	ACCBALUSD=`printf '%s*%s\n' "$ACCBAL" "$NEAR_PRICE" | bc`
 	if is_lockup "$ACCID"; then
 		ACCID=`lockup_owner "$ACCID"`
 		if is_foundation "$ACCID"; then continue; fi
 		ACCID=`printf '%s (via lockup)' "$ACCID"`
 	fi
 
+	TOTAL_BALANCE=`printf '%s + %s\n' "$TOTAL_BALANCE" "$ACCBAL" | bc`
+	DELEG_COUNT=`expr $DELEG_COUNT + 1`
+	ACCBALUSD=`printf '%s*%s\n' "$ACCBAL" "$NEAR_PRICE" | bc`
 	printf "%13s NEAR  (%13s USD) -- %s\n" "$ACCBAL" "$ACCBALUSD" "$ACCID"
 done
 
