@@ -7,7 +7,6 @@ die() {
 
 ACCOUNT_POOL="$1"
 ACCOUNTS_OWN="$2"
-ACCOUNTS_BLACKLIST="$3"
 
 get_accounts() {
 	# This requires a modified version of `near-cli` that outputs JSON.
@@ -18,6 +17,18 @@ get_accounts() {
 		| sed -e '1d'
 }
 
+is_lockup() {
+	printf '%s' "$1" | grep -Eq '^[[:alnum:]]{40}\.lockup\.near$'
+}
+
+lockup_owner() {
+	near view "$1" get_owner_account_id | sed -e '1d' | jq -r ''
+}
+
+is_foundation() {
+	printf '%s' "$1" | grep -Eq 'nfendowment[[:digit:]]{2}.near'
+}
+
 near_price() {
 	curl -s -X GET "https://api.coingecko.com/api/v3/simple/price?ids=near&vs_currencies=usd" \
 	        -H  "accept: application/json" \
@@ -25,12 +36,10 @@ near_price() {
 }
 
 is_blacklisted() {
-	ACCT_MATCH=`printf '%s' "$ACCOUNTS_BLACKLIST" | tr ' ' '\n' | grep "$1"`
-	test -n "$ACCT_MATCH"
+	printf '%s' "$ACCOUNTS_BLACKLIST" | tr ' ' '\n' | grep -q "$1"
 }
 is_own() {
-	ACCT_MATCH=`printf '%s' "$ACCOUNTS_OWN" | grep "$1"`
-	test -n "$ACCT_MATCH"
+	printf '%s' "$ACCOUNTS_OWN" | grep -q "$1"
 }
 
 ACCOUNTS_JSON=$(get_accounts)
@@ -58,8 +67,7 @@ for i in `seq 1 $ACCOUNT_COUNT`; do
 	ACCID=`printf '%s' "$ACCOUNT_IDS" | sed -n ${i}p`
 	ACCBAL=`printf '%s' "$ACCOUNT_BALANCES" | sed -n ${i}p`
 
-	if is_blacklisted "$ACCID"; then continue;
-	elif is_own "$ACCID"; then 
+	if is_own "$ACCID"; then 
 		OWN_BALANCE=`printf '%s + %s\n' "$OWN_BALANCE" "$ACCBAL" | bc`
 		continue
 	fi
@@ -67,6 +75,12 @@ for i in `seq 1 $ACCOUNT_COUNT`; do
 	TOTAL_BALANCE=`printf '%s + %s\n' "$TOTAL_BALANCE" "$ACCBAL" | bc`
 	DELEG_COUNT=`expr $DELEG_COUNT + 1`
 	ACCBALUSD=`printf '%s*%s\n' "$ACCBAL" "$NEAR_PRICE" | bc`
+	if is_lockup "$ACCID"; then
+		ACCID=`lockup_owner "$ACCID"`
+		if is_foundation "$ACCID"; then continue; fi
+		ACCID=`printf '%s (via lockup)' "$ACCID"`
+	fi
+
 	printf "%13s NEAR  (%13s USD) -- %s\n" "$ACCBAL" "$ACCBALUSD" "$ACCID"
 done
 
