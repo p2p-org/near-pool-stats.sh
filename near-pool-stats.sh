@@ -35,9 +35,6 @@ near_price() {
 		| jq .near.usd
 }
 
-is_blacklisted() {
-	printf '%s' "$ACCOUNTS_BLACKLIST" | tr ' ' '\n' | grep -q "$1"
-}
 is_own() {
 	printf '%s' "$ACCOUNTS_OWN" | grep -q "$1"
 }
