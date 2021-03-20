@@ -6,11 +6,11 @@
 ACCOUNT_POOL="$1"
 ACCOUNTS_OWN="$2"
 
-near_view() {
-	local CONTRACT_ID="$1"
-	local CONTRACT_METHOD="$2"
-	local CONTRACT_ARGS=`printf '%s' "$3" | base64`
-	local REQUEST_PARAMS=`printf '
+near_view() (
+	CONTRACT_ID="$1"
+	CONTRACT_METHOD="$2"
+	CONTRACT_ARGS=$(printf '%s' "$3" | base64)
+	REQUEST_PARAMS=$(printf '
 	{
 		"jsonrpc": "2.0",
 		"id": "dontcare",
@@ -23,30 +23,29 @@ near_view() {
 			"args_base64": "%s"
 		}
 	}
-	' "$CONTRACT_ID" "$CONTRACT_METHOD" "$CONTRACT_ARGS"`
+	' "$CONTRACT_ID" "$CONTRACT_METHOD" "$CONTRACT_ARGS")
 	curl -s -X POST \
      		-H 'Content-Type: application/json' \
      		-d "$REQUEST_PARAMS" \
      		https://rpc.mainnet.near.org \
 			| jq -r ".result.result | implode"
-}
+)
 
-get_accounts() {
-	# local COUNT=`near_view "$ACCOUNT_POOL" get_number_of_accounts`
-	local LIMIT=100
-	local INDEX=0
-	local ACCOUNTS='[]'
+get_accounts() (
+	LIMIT=100
+	INDEX=0
+	ACCOUNTS='[]'
 	while
-		local GET_ACC_ARGS=`printf '{"limit": %s, "from_index": %s}' "$LIMIT" "$INDEX"`
-		local NEW_ACCOUNTS=`near_view "$ACCOUNT_POOL" get_accounts "$GET_ACC_ARGS"`
-		local COUNT=`printf '%s' "$NEW_ACCOUNTS" | jq length`
+		GET_ACC_ARGS=`printf '{"limit": %s, "from_index": %s}' "$LIMIT" "$INDEX"`
+		NEW_ACCOUNTS=`near_view "$ACCOUNT_POOL" get_accounts "$GET_ACC_ARGS"`
+		COUNT=`printf '%s' "$NEW_ACCOUNTS" | jq length`
 		INDEX=`expr "$INDEX" + "$COUNT"`
 		ACCOUNTS=`printf '%s%s' "$ACCOUNTS" "$NEW_ACCOUNTS" \
 			| jq  -s '.[0]=([.[]]|flatten)|.[0]'`
 		test "$COUNT" -eq "$LIMIT"
 	do :; done
 	printf '%s' "$ACCOUNTS"
-}
+)
 
 is_lockup() {
 	printf '%s' "$1" | grep -Eq '^[[:alnum:]]{40}\.lockup\.near$'
@@ -77,7 +76,7 @@ accounts() {
 
 ACCOUNTS_JSON=`accounts | jq 'sort_by(.staked_balance|tonumber) | reverse'`
 ACCOUNT_IDS=`accounts | jq -r '.[]|.account_id'`
-ACCOUNT_BALANCES=`accounts | jq -r '.[]|.staked_balance' | awk '{ printf "%.4f\n", $1 * 10^-24 }')`
+ACCOUNT_BALANCES=`accounts | jq -r '.[]|.staked_balance' | awk '{ printf "%.4f\n", $1 * 10^-24 }'`
 TOTAL_COUNT=`accounts | jq 'length'`
 TOTAL_TOTAL=0
 NEAR_PRICE=`near_price`
@@ -85,7 +84,7 @@ NEAR_PRICE=`near_price`
 printf "Current date: %s\n" "`date -u`"
 printf "Current NEAR price: %s USD (source: CoinGecko).\n" "$NEAR_PRICE"
 
-printf "\nViewing delegations data for the staking pool "$ACCOUNT_POOL"\n"
+printf "\nViewing delegations data for the staking pool %s\n" "$ACCOUNT_POOL"
 
 OWN_ACCOUNTS=""
 FND_ACCOUNTS=""
@@ -111,11 +110,11 @@ for i in `seq 1 $TOTAL_COUNT`; do
 	fi
 done
 
-print_accts() {
-	local ACCOUNTS=`printf '%s' "$1" | tr ';' '\n'`
-	local COUNT=`printf '%s\n' "$ACCOUNTS" | wc -l`
+print_accts() (
+	ACCOUNTS=`printf '%s' "$1" | tr ';' '\n'`
+	COUNT=`printf '%s\n' "$ACCOUNTS" | wc -l`
 	printf '%s\n' "$ACCOUNTS" | while read ACCBAL ACCID; do
-		local ACCBALUSD=`printf '%s*%s\n' "$ACCBAL" "$NEAR_PRICE" | bc`
+		ACCBALUSD=`printf '%s*%s\n' "$ACCBAL" "$NEAR_PRICE" | bc`
 		printf "%14s NEAR  (%14s USD) -- %s\n" "$ACCBAL" "$ACCBALUSD" "$ACCID"
 	done
 	test $COUNT = 1 && return
@@ -127,10 +126,10 @@ print_accts() {
 	       	printf '%s\n' "$TOTAL" 
 	) | (
 		read TOTAL
-		local TOTAL_USD=`printf '%s*%s\n' "$TOTAL" "$NEAR_PRICE" | bc`
+		TOTAL_USD=`printf '%s*%s\n' "$TOTAL" "$NEAR_PRICE" | bc`
 		printf '%14s NEAR  (%14s USD) -- Subtotal across %s accounts\n' "$TOTAL" "$TOTAL_USD" "$COUNT"
 	)
-}
+)
 
 printf "\nOwn stake, including validator fees:\n"
 print_accts "$OWN_ACCOUNTS"
