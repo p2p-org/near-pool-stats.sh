@@ -1,9 +1,7 @@
 #!/bin/sh
 
-die() {
-       echo "$*" 1>&2
-       exit 1
-}
+# Usage: ./near-pool-stats.sh <POOL_ACCOUNT_ID> "<OWN_ACCOUNT_ID_1> [<OWN_ACCOUNT_ID_2 [...]]"
+# E.g. ./near-pool-stats.sh p2p-org.poolv1.near p2p-org.near
 
 ACCOUNT_POOL="$1"
 ACCOUNTS_OWN="$2"
