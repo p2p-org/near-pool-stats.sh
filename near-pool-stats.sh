@@ -39,7 +39,7 @@ get_accounts() (
 		GET_ACC_ARGS=$(printf '{"limit": %s, "from_index": %s}' "$LIMIT" "$INDEX")
 		NEW_ACCOUNTS=$(near_view "$ACCOUNT_POOL" get_accounts "$GET_ACC_ARGS")
 		COUNT=$(printf '%s' "$NEW_ACCOUNTS" | jq length)
-		INDEX=$(expr "$INDEX" + "$COUNT")
+		INDEX=$(( INDEX + COUNT ))
 		ACCOUNTS=$(printf '%s%s' "$ACCOUNTS" "$NEW_ACCOUNTS" \
 			| jq  -s '.[0]=([.[]]|flatten)|.[0]')
 		test "$COUNT" -eq "$LIMIT"
@@ -90,9 +90,9 @@ OWN_ACCOUNTS=""
 FND_ACCOUNTS=""
 DELEG_ACCOUNTS=""
 
-for i in $(seq 1 $TOTAL_COUNT); do
-	ACCID=$(printf '%s' "$ACCOUNT_IDS" | sed -n ${i}p)
-	ACCBAL=$(printf '%s' "$ACCOUNT_BALANCES" | sed -n ${i}p)
+for i in $(seq 1 "$TOTAL_COUNT"); do
+	ACCID=$(printf '%s' "$ACCOUNT_IDS" | sed -n "${i}p")
+	ACCBAL=$(printf '%s' "$ACCOUNT_BALANCES" | sed -n "${i}p")
 	ACCFMT="$ACCBAL $ACCID"
 
 	if is_lockup "$ACCID"; then
@@ -113,19 +113,19 @@ done
 print_accts() (
 	ACCOUNTS=$(printf '%s' "$1" | tr ';' '\n')
 	COUNT=$(printf '%s\n' "$ACCOUNTS" | wc -l)
-	printf '%s\n' "$ACCOUNTS" | while read ACCBAL ACCID; do
+	printf '%s\n' "$ACCOUNTS" | while read -r ACCBAL ACCID; do
 		ACCBALUSD=$(printf '%s*%s\n' "$ACCBAL" "$NEAR_PRICE" | bc)
 		printf "%14s NEAR  (%14s USD) -- %s\n" "$ACCBAL" "$ACCBALUSD" "$ACCID"
 	done
-	test $COUNT = 1 && return
+	test "$COUNT" = 1 && return
 	printf '%s\n' "$ACCOUNTS" | ( 
 		TOTAL=0; 
-		while IFS=' ' read ACCBAL _; do
+		while IFS=' ' read -r ACCBAL _; do
 			TOTAL=$(printf '%s + %s\n' "$TOTAL" "$ACCBAL" | bc)
 		done
 	       	printf '%s\n' "$TOTAL" 
 	) | (
-		read TOTAL
+		read -r TOTAL
 		TOTAL_USD=$(printf '%s*%s\n' "$TOTAL" "$NEAR_PRICE" | bc)
 		printf '%14s NEAR  (%14s USD) -- Subtotal across %s accounts\n' "$TOTAL" "$TOTAL_USD" "$COUNT"
 	)
