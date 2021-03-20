@@ -32,7 +32,20 @@ near_view() {
 }
 
 get_accounts() {
-	near_view "$ACCOUNT_POOL" get_accounts '{"limit": 100, "from_index": 0}'
+	# local COUNT=`near_view "$ACCOUNT_POOL" get_number_of_accounts`
+	local LIMIT=100
+	local INDEX=0
+	local ACCOUNTS='[]'
+	while
+		local GET_ACC_ARGS=`printf '{"limit": %s, "from_index": %s}' "$LIMIT" "$INDEX"`
+		local NEW_ACCOUNTS=`near_view "$ACCOUNT_POOL" get_accounts "$GET_ACC_ARGS"`
+		local COUNT=`printf '%s' "$NEW_ACCOUNTS" | jq length`
+		INDEX=`expr "$INDEX" + "$COUNT"`
+		ACCOUNTS=`printf '%s%s' "$ACCOUNTS" "$NEW_ACCOUNTS" \
+			| jq  -s '.[0]=([.[]]|flatten)|.[0]'`
+		test "$COUNT" -eq "$LIMIT"
+	do :; done
+	printf '%s' "$ACCOUNTS"
 }
 
 is_lockup() {
