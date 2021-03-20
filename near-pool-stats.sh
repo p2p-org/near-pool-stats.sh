@@ -36,12 +36,12 @@ get_accounts() (
 	INDEX=0
 	ACCOUNTS='[]'
 	while
-		GET_ACC_ARGS=`printf '{"limit": %s, "from_index": %s}' "$LIMIT" "$INDEX"`
-		NEW_ACCOUNTS=`near_view "$ACCOUNT_POOL" get_accounts "$GET_ACC_ARGS"`
-		COUNT=`printf '%s' "$NEW_ACCOUNTS" | jq length`
-		INDEX=`expr "$INDEX" + "$COUNT"`
-		ACCOUNTS=`printf '%s%s' "$ACCOUNTS" "$NEW_ACCOUNTS" \
-			| jq  -s '.[0]=([.[]]|flatten)|.[0]'`
+		GET_ACC_ARGS=$(printf '{"limit": %s, "from_index": %s}' "$LIMIT" "$INDEX")
+		NEW_ACCOUNTS=$(near_view "$ACCOUNT_POOL" get_accounts "$GET_ACC_ARGS")
+		COUNT=$(printf '%s' "$NEW_ACCOUNTS" | jq length)
+		INDEX=$(expr "$INDEX" + "$COUNT")
+		ACCOUNTS=$(printf '%s%s' "$ACCOUNTS" "$NEW_ACCOUNTS" \
+			| jq  -s '.[0]=([.[]]|flatten)|.[0]')
 		test "$COUNT" -eq "$LIMIT"
 	do :; done
 	printf '%s' "$ACCOUNTS"
@@ -69,19 +69,19 @@ is_own() {
 	printf '%s' "$ACCOUNTS_OWN" | grep -q "$1"
 }
 
-ACCOUNTS_JSON=`get_accounts`
+ACCOUNTS_JSON=$(get_accounts)
 accounts() {
        printf '%s' "$ACCOUNTS_JSON"
 }
 
-ACCOUNTS_JSON=`accounts | jq 'sort_by(.staked_balance|tonumber) | reverse'`
-ACCOUNT_IDS=`accounts | jq -r '.[]|.account_id'`
-ACCOUNT_BALANCES=`accounts | jq -r '.[]|.staked_balance' | awk '{ printf "%.4f\n", $1 * 10^-24 }'`
-TOTAL_COUNT=`accounts | jq 'length'`
+ACCOUNTS_JSON=$(accounts | jq 'sort_by(.staked_balance|tonumber) | reverse')
+ACCOUNT_IDS=$(accounts | jq -r '.[]|.account_id')
+ACCOUNT_BALANCES=$(accounts | jq -r '.[]|.staked_balance' | awk '{ printf "%.4f\n", $1 * 10^-24 }')
+TOTAL_COUNT=$(accounts | jq 'length')
 TOTAL_TOTAL=0
-NEAR_PRICE=`near_price`
+NEAR_PRICE=$(near_price)
 
-printf "Current date: %s\n" "`date -u`"
+printf "Current date: %s\n" "$(date -u)"
 printf "Current NEAR price: %s USD (source: CoinGecko).\n" "$NEAR_PRICE"
 
 printf "\nViewing delegations data for the staking pool %s\n" "$ACCOUNT_POOL"
@@ -90,17 +90,17 @@ OWN_ACCOUNTS=""
 FND_ACCOUNTS=""
 DELEG_ACCOUNTS=""
 
-for i in `seq 1 $TOTAL_COUNT`; do
-	ACCID=`printf '%s' "$ACCOUNT_IDS" | sed -n ${i}p`
-	ACCBAL=`printf '%s' "$ACCOUNT_BALANCES" | sed -n ${i}p`
+for i in $(seq 1 $TOTAL_COUNT); do
+	ACCID=$(printf '%s' "$ACCOUNT_IDS" | sed -n ${i}p)
+	ACCBAL=$(printf '%s' "$ACCOUNT_BALANCES" | sed -n ${i}p)
 	ACCFMT="$ACCBAL $ACCID"
 
 	if is_lockup "$ACCID"; then
-		ACCID=`lockup_owner "$ACCID"`
+		ACCID=$(lockup_owner "$ACCID")
 		ACCFMT="$ACCBAL $ACCID (via lockup)"
 	fi
 
-	TOTAL_TOTAL=`printf '%s + %s\n' "$TOTAL_TOTAL" "$ACCBAL" | bc`
+	TOTAL_TOTAL=$(printf '%s + %s\n' "$TOTAL_TOTAL" "$ACCBAL" | bc)
 	if is_own "$ACCID"; then 
 		OWN_ACCOUNTS="${OWN_ACCOUNTS}${ACCFMT};"
 	elif is_foundation "$ACCID"; then
@@ -111,22 +111,22 @@ for i in `seq 1 $TOTAL_COUNT`; do
 done
 
 print_accts() (
-	ACCOUNTS=`printf '%s' "$1" | tr ';' '\n'`
-	COUNT=`printf '%s\n' "$ACCOUNTS" | wc -l`
+	ACCOUNTS=$(printf '%s' "$1" | tr ';' '\n')
+	COUNT=$(printf '%s\n' "$ACCOUNTS" | wc -l)
 	printf '%s\n' "$ACCOUNTS" | while read ACCBAL ACCID; do
-		ACCBALUSD=`printf '%s*%s\n' "$ACCBAL" "$NEAR_PRICE" | bc`
+		ACCBALUSD=$(printf '%s*%s\n' "$ACCBAL" "$NEAR_PRICE" | bc)
 		printf "%14s NEAR  (%14s USD) -- %s\n" "$ACCBAL" "$ACCBALUSD" "$ACCID"
 	done
 	test $COUNT = 1 && return
 	printf '%s\n' "$ACCOUNTS" | ( 
 		TOTAL=0; 
 		while IFS=' ' read ACCBAL _; do
-			TOTAL=`printf '%s + %s\n' "$TOTAL" "$ACCBAL" | bc`
+			TOTAL=$(printf '%s + %s\n' "$TOTAL" "$ACCBAL" | bc)
 		done
 	       	printf '%s\n' "$TOTAL" 
 	) | (
 		read TOTAL
-		TOTAL_USD=`printf '%s*%s\n' "$TOTAL" "$NEAR_PRICE" | bc`
+		TOTAL_USD=$(printf '%s*%s\n' "$TOTAL" "$NEAR_PRICE" | bc)
 		printf '%14s NEAR  (%14s USD) -- Subtotal across %s accounts\n' "$TOTAL" "$TOTAL_USD" "$COUNT"
 	)
 )
