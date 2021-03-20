@@ -69,7 +69,7 @@ near_price() {
 }
 
 is_own() {
-	printf '%s' "$ACCOUNTS_OWN" | grep -q "$1"
+	test "$ACCID_OWN" = "$1"
 }
 
 print_accts() (
@@ -79,7 +79,7 @@ print_accts() (
 		ACCBALUSD=$(printf '%s*%s\n' "$ACCBAL" "$NEAR_PRICE" | bc)
 		printf "%14s NEAR  (%14s USD) -- %s\n" "$ACCBAL" "$ACCBALUSD" "$ACCID"
 	done
-	test "$COUNT" = 1 && return
+	test "$COUNT" -eq 1 && return
 	TOTAL=$(printf '%s\n' "$ACCOUNTS" | ( 
 		TOTAL=0; 
 		while IFS=' ' read -r ACCBAL _; do
@@ -92,7 +92,7 @@ print_accts() (
 	printf '%14s NEAR  (%14s USD) -- Subtotal across %s accounts\n' "$TOTAL" "$TOTAL_USD" "$COUNT"
 )
 
-ACCOUNTS_OWN="$ACCOUNTS_OWN $(get_pool_owner "$ACCOUNT_POOL")"
+ACCID_OWN=$(get_pool_owner "$ACCOUNT_POOL")
 ACCOUNTS_JSON=$(get_accounts | jq 'sort_by(.staked_balance|tonumber) | reverse')
 ACCOUNT_IDS=$(printf '%s' "$ACCOUNTS_JSON" | jq -r '.[]|.account_id')
 ACCOUNT_BALANCES=$(printf '%s' "$ACCOUNTS_JSON" | jq -r '.[]|.staked_balance' | awk '{ printf "%.4f\n", $1 * 10^-24 }')
