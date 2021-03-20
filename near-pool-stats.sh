@@ -1,10 +1,9 @@
 #!/bin/sh
 
-# Usage: ./near-pool-stats.sh <POOL_ACCOUNT_ID> "<OWN_ACCOUNT_ID_1> [<OWN_ACCOUNT_ID_2 [...]]"
-# E.g. ./near-pool-stats.sh p2p-org.poolv1.near p2p-org.near
+# Usage: ./near-pool-stats.sh <POOL_ACCOUNT_ID>
+# E.g. ./near-pool-stats.sh p2p-org.poolv1.near
 
 ACCOUNT_POOL="$1"
-ACCOUNTS_OWN="$2"
 
 near_view() (
 	CONTRACT_ID="$1"
@@ -46,6 +45,10 @@ get_accounts() (
 	do :; done
 	printf '%s' "$ACCOUNTS"
 )
+
+get_pool_owner() {
+	near_view "$1" get_owner_id | jq -r .
+}
 
 is_lockup() {
 	printf '%s' "$1" | grep -Eq '^[[:alnum:]]{40}\.lockup\.near$'
@@ -90,6 +93,7 @@ print_accts() (
 	)
 )
 
+ACCOUNTS_OWN="$ACCOUNTS_OWN $(get_pool_owner "$ACCOUNT_POOL")"
 ACCOUNTS_JSON=$(get_accounts | jq 'sort_by(.staked_balance|tonumber) | reverse')
 ACCOUNT_IDS=$(printf '%s' "$ACCOUNTS_JSON" | jq -r '.[]|.account_id')
 ACCOUNT_BALANCES=$(printf '%s' "$ACCOUNTS_JSON" | jq -r '.[]|.staked_balance' | awk '{ printf "%.4f\n", $1 * 10^-24 }')
@@ -126,7 +130,7 @@ printf "Current NEAR price: %s USD (source: CoinGecko).\n" "$NEAR_PRICE"
 
 printf "\nViewing delegations data for the staking pool %s\n" "$ACCOUNT_POOL"
 
-printf "\nOwn stake, including validator fees:\n"
+printf "\nPool owner's stake, including validator fees:\n"
 print_accts "$OWN_ACCOUNTS"
 
 printf "\nNEAR Foundation delegation:\n"
