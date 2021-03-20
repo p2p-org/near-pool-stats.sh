@@ -67,44 +67,68 @@ accounts() {
 ACCOUNTS_JSON=`accounts | jq 'sort_by(.staked_balance|tonumber) | reverse'`
 ACCOUNT_IDS=`accounts | jq -r '.[]|.account_id'`
 ACCOUNT_BALANCES=`accounts | jq -r '.[]|.staked_balance' | awk '{ printf "%.4f\n", $1 * 10^-24 }')`
-ACCOUNT_COUNT=`accounts | jq 'length'`
+TOTAL_COUNT=`accounts | jq 'length'`
+TOTAL_TOTAL=0
 NEAR_PRICE=`near_price`
 
-printf "\nCurrent date: %s\n" "`date -u`"
+printf "Current date: %s\n" "`date -u`"
 printf "Current NEAR price: %s USD (source: CoinGecko).\n" "$NEAR_PRICE"
 
 printf "\nViewing delegations data for the staking pool "$ACCOUNT_POOL"\n"
 
-printf "\nAll delegations (excluding Foundation):\n"
+OWN_ACCOUNTS=""
+FND_ACCOUNTS=""
+DELEG_ACCOUNTS=""
 
-DELEG_COUNT=0
-TOTAL_BALANCE=0
-OWN_BALANCE=0
-for i in `seq 1 $ACCOUNT_COUNT`; do
+for i in `seq 1 $TOTAL_COUNT`; do
 	ACCID=`printf '%s' "$ACCOUNT_IDS" | sed -n ${i}p`
 	ACCBAL=`printf '%s' "$ACCOUNT_BALANCES" | sed -n ${i}p`
-
-	if is_own "$ACCID"; then 
-		OWN_BALANCE=`printf '%s + %s\n' "$OWN_BALANCE" "$ACCBAL" | bc`
-		continue
-	fi
+	ACCFMT="$ACCBAL $ACCID"
 
 	if is_lockup "$ACCID"; then
 		ACCID=`lockup_owner "$ACCID"`
-		if is_foundation "$ACCID"; then continue; fi
-		ACCID=`printf '%s (via lockup)' "$ACCID"`
+		ACCFMT="$ACCBAL $ACCID (via lockup)"
 	fi
 
-	TOTAL_BALANCE=`printf '%s + %s\n' "$TOTAL_BALANCE" "$ACCBAL" | bc`
-	DELEG_COUNT=`expr $DELEG_COUNT + 1`
-	ACCBALUSD=`printf '%s*%s\n' "$ACCBAL" "$NEAR_PRICE" | bc`
-	printf "%13s NEAR  (%13s USD) -- %s\n" "$ACCBAL" "$ACCBALUSD" "$ACCID"
+	TOTAL_TOTAL=`printf '%s + %s\n' "$TOTAL_TOTAL" "$ACCBAL" | bc`
+	if is_own "$ACCID"; then 
+		OWN_ACCOUNTS="${OWN_ACCOUNTS}${ACCFMT};"
+	elif is_foundation "$ACCID"; then
+		FND_ACCOUNTS="${FND_ACCOUNTS}${ACCFMT};"
+	else
+		DELEG_ACCOUNTS="${DELEG_ACCOUNTS}${ACCFMT};"
+	fi
 done
 
-TOTAL_USD=`printf '%s*%s\n' "$TOTAL_BALANCE" "$NEAR_PRICE" | bc`
-printf "\nTotal delegated across %d accounts:\n %13s NEAR (%13s USD)\n" "$DELEG_COUNT" "$TOTAL_BALANCE" "$TOTAL_USD"
+print_accts() {
+	local ACCOUNTS=`printf '%s' "$1" | tr ';' '\n'`
+	local COUNT=`printf '%s\n' "$ACCOUNTS" | wc -l`
+	printf '%s\n' "$ACCOUNTS" | while read ACCBAL ACCID; do
+		local ACCBALUSD=`printf '%s*%s\n' "$ACCBAL" "$NEAR_PRICE" | bc`
+		printf "%14s NEAR  (%14s USD) -- %s\n" "$ACCBAL" "$ACCBALUSD" "$ACCID"
+	done
+	test $COUNT = 1 && return
+	printf '%s\n' "$ACCOUNTS" | ( 
+		TOTAL=0; 
+		while IFS=' ' read ACCBAL _; do
+			TOTAL=`printf '%s + %s\n' "$TOTAL" "$ACCBAL" | bc`
+		done
+	       	printf '%s\n' "$TOTAL" 
+	) | (
+		read TOTAL
+		local TOTAL_USD=`printf '%s*%s\n' "$TOTAL" "$NEAR_PRICE" | bc`
+		printf '%14s NEAR  (%14s USD) -- Subtotal across %s accounts\n' "$TOTAL" "$TOTAL_USD" "$COUNT"
+	)
+}
 
-OWN_USD=`printf '%s*%s\n' "$OWN_BALANCE" "$NEAR_PRICE" | bc`
-printf "\nThe staking pool is managed by $ACCOUNTS_OWN\n"
-printf "Own stake, including validator fees collected:\n %13s NEAR (%13s USD) -- $ACCOUNTS_OWN\n" "$OWN_BALANCE" "$OWN_USD"
+printf "\nOwn stake, including validator fees:\n"
+print_accts "$OWN_ACCOUNTS"
 
+printf "\nNEAR Foundation delegation:\n"
+print_accts "$FND_ACCOUNTS"
+
+printf "\nMiscellaneous delegations:\n"
+print_accts "$DELEG_ACCOUNTS"
+
+printf "\n"
+print_accts "$TOTAL_TOTAL Total across $TOTAL_COUNT account(s)"
