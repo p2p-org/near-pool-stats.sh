@@ -69,26 +69,37 @@ is_own() {
 	printf '%s' "$ACCOUNTS_OWN" | grep -q "$1"
 }
 
-ACCOUNTS_JSON=$(get_accounts)
-accounts() {
-       printf '%s' "$ACCOUNTS_JSON"
-}
+print_accts() (
+	ACCOUNTS=$(printf '%s' "$1" | tr ';' '\n')
+	COUNT=$(printf '%s\n' "$ACCOUNTS" | wc -l)
+	printf '%s\n' "$ACCOUNTS" | while read -r ACCBAL ACCID; do
+		ACCBALUSD=$(printf '%s*%s\n' "$ACCBAL" "$NEAR_PRICE" | bc)
+		printf "%14s NEAR  (%14s USD) -- %s\n" "$ACCBAL" "$ACCBALUSD" "$ACCID"
+	done
+	test "$COUNT" = 1 && return
+	printf '%s\n' "$ACCOUNTS" | ( 
+		TOTAL=0; 
+		while IFS=' ' read -r ACCBAL _; do
+			TOTAL=$(printf '%s + %s\n' "$TOTAL" "$ACCBAL" | bc)
+		done
+	       	printf '%s\n' "$TOTAL" 
+	) | (
+		read -r TOTAL
+		TOTAL_USD=$(printf '%s*%s\n' "$TOTAL" "$NEAR_PRICE" | bc)
+		printf '%14s NEAR  (%14s USD) -- Subtotal across %s accounts\n' "$TOTAL" "$TOTAL_USD" "$COUNT"
+	)
+)
 
-ACCOUNTS_JSON=$(accounts | jq 'sort_by(.staked_balance|tonumber) | reverse')
-ACCOUNT_IDS=$(accounts | jq -r '.[]|.account_id')
-ACCOUNT_BALANCES=$(accounts | jq -r '.[]|.staked_balance' | awk '{ printf "%.4f\n", $1 * 10^-24 }')
-TOTAL_COUNT=$(accounts | jq 'length')
-TOTAL_TOTAL=0
+ACCOUNTS_JSON=$(get_accounts | jq 'sort_by(.staked_balance|tonumber) | reverse')
+ACCOUNT_IDS=$(printf '%s' "$ACCOUNTS_JSON" | jq -r '.[]|.account_id')
+ACCOUNT_BALANCES=$(printf '%s' "$ACCOUNTS_JSON" | jq -r '.[]|.staked_balance' | awk '{ printf "%.4f\n", $1 * 10^-24 }')
+TOTAL_COUNT=$(printf '%s' "$ACCOUNTS_JSON" | jq 'length')
 NEAR_PRICE=$(near_price)
-
-printf "Current date: %s\n" "$(date -u)"
-printf "Current NEAR price: %s USD (source: CoinGecko).\n" "$NEAR_PRICE"
-
-printf "\nViewing delegations data for the staking pool %s\n" "$ACCOUNT_POOL"
 
 OWN_ACCOUNTS=""
 FND_ACCOUNTS=""
 DELEG_ACCOUNTS=""
+TOTAL_TOTAL=0
 
 for i in $(seq 1 "$TOTAL_COUNT"); do
 	ACCID=$(printf '%s' "$ACCOUNT_IDS" | sed -n "${i}p")
@@ -110,26 +121,10 @@ for i in $(seq 1 "$TOTAL_COUNT"); do
 	fi
 done
 
-print_accts() (
-	ACCOUNTS=$(printf '%s' "$1" | tr ';' '\n')
-	COUNT=$(printf '%s\n' "$ACCOUNTS" | wc -l)
-	printf '%s\n' "$ACCOUNTS" | while read -r ACCBAL ACCID; do
-		ACCBALUSD=$(printf '%s*%s\n' "$ACCBAL" "$NEAR_PRICE" | bc)
-		printf "%14s NEAR  (%14s USD) -- %s\n" "$ACCBAL" "$ACCBALUSD" "$ACCID"
-	done
-	test "$COUNT" = 1 && return
-	printf '%s\n' "$ACCOUNTS" | ( 
-		TOTAL=0; 
-		while IFS=' ' read -r ACCBAL _; do
-			TOTAL=$(printf '%s + %s\n' "$TOTAL" "$ACCBAL" | bc)
-		done
-	       	printf '%s\n' "$TOTAL" 
-	) | (
-		read -r TOTAL
-		TOTAL_USD=$(printf '%s*%s\n' "$TOTAL" "$NEAR_PRICE" | bc)
-		printf '%14s NEAR  (%14s USD) -- Subtotal across %s accounts\n' "$TOTAL" "$TOTAL_USD" "$COUNT"
-	)
-)
+printf "Current date: %s\n" "$(date -u)"
+printf "Current NEAR price: %s USD (source: CoinGecko).\n" "$NEAR_PRICE"
+
+printf "\nViewing delegations data for the staking pool %s\n" "$ACCOUNT_POOL"
 
 printf "\nOwn stake, including validator fees:\n"
 print_accts "$OWN_ACCOUNTS"
