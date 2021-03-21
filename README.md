@@ -5,6 +5,7 @@ A POSIX shell script to output delegations stats of a NEAR staking pool in a hum
 ## Prerequisites
 
 - a POSIX-compliant shell (tested on `bash`, `dash`, and `ksh`)
+- some POSIX utilities: `grep`, `awk`, `sed`
 - `jq`
 - `bc`
 - `curl`
