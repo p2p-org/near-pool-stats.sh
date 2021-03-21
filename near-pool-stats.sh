@@ -132,11 +132,15 @@ printf "\nViewing delegations data for the staking pool %s\n" "$ACCOUNT_POOL"
 printf "\nPool owner's stake, including validator fees:\n"
 print_accts "$OWN_ACCOUNTS"
 
-printf "\nNEAR Foundation delegation:\n"
-print_accts "$FND_ACCOUNTS"
+if [ -n "$FND_ACCOUNTS" ]; then
+       printf "\nNEAR Foundation delegation:\n"
+	print_accts "$FND_ACCOUNTS"
+fi
 
-printf "\nMiscellaneous delegations:\n"
-print_accts "$DELEG_ACCOUNTS"
+if [ -n "$DELEG_ACCOUNTS" ]; then
+	printf "\nMiscellaneous delegations:\n"
+	print_accts "$DELEG_ACCOUNTS"
+fi
 
 printf "\n"
 print_accts "$TOTAL_TOTAL Total across $TOTAL_COUNT account(s)"
