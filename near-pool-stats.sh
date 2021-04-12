@@ -93,10 +93,13 @@ print_accts() (
 )
 
 ACCID_OWN=$(get_pool_owner "$ACCOUNT_POOL")
-ACCOUNTS_JSON=$(get_accounts | jq 'sort_by(.staked_balance|tonumber) | reverse')
+ALL_ACCOUNTS_JSON=$(get_accounts)
+ACCOUNTS_JSON=$(printf '%s' "$ALL_ACCOUNTS_JSON" | jq 'map(select(.staked_balance != "0")) | sort_by(.staked_balance|tonumber) | reverse')
 ACCOUNT_IDS=$(printf '%s' "$ACCOUNTS_JSON" | jq -r '.[]|.account_id')
 ACCOUNT_BALANCES=$(printf '%s' "$ACCOUNTS_JSON" | jq -r '.[]|.staked_balance' | awk '{ printf "%.4f\n", $1 * 10^-24 }')
-TOTAL_COUNT=$(printf '%s' "$ACCOUNTS_JSON" | jq 'length')
+TOTAL_COUNT=$(printf '%s' "$ALL_ACCOUNTS_JSON" | jq 'length')
+NON_EMPTY_COUNT=$(printf '%s' "$ACCOUNTS_JSON" | jq 'length')
+EMPTY_COUNT=$(( TOTAL_COUNT - NON_EMPTY_COUNT ))
 NEAR_PRICE=$(near_price)
 
 OWN_ACCOUNTS=""
@@ -104,7 +107,7 @@ FND_ACCOUNTS=""
 DELEG_ACCOUNTS=""
 TOTAL_TOTAL=0
 
-for i in $(seq 1 "$TOTAL_COUNT"); do
+for i in $(seq 1 "$NON_EMPTY_COUNT"); do
 	ACCID=$(printf '%s' "$ACCOUNT_IDS" | sed -n "${i}p")
 	ACCBAL=$(printf '%s' "$ACCOUNT_BALANCES" | sed -n "${i}p")
 	ACCFMT="$ACCBAL $ACCID"
@@ -143,4 +146,5 @@ if [ -n "$DELEG_ACCOUNTS" ]; then
 fi
 
 printf "\n"
-print_accts "$TOTAL_TOTAL Total across $TOTAL_COUNT account(s)"
+print_accts "$TOTAL_TOTAL Total across $NON_EMPTY_COUNT account(s)"
+printf '%45sAccounts with zero balance: %s\n' ' ' "$EMPTY_COUNT"
