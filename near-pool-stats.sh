@@ -146,5 +146,5 @@ if [ -n "$DELEG_ACCOUNTS" ]; then
 fi
 
 printf "\n"
-print_accts "$TOTAL_TOTAL Total across $NON_EMPTY_COUNT account(s)"
-printf '%45sAccounts with zero balance: %s\n' ' ' "$EMPTY_COUNT"
+print_accts "$TOTAL_TOTAL Total across $NON_EMPTY_COUNT non-empty account(s)"
+printf '%45sand %s accounts with zero staked balance\n' ' ' "$EMPTY_COUNT"
