@@ -13,53 +13,63 @@ A POSIX shell script to output delegations stats of a NEAR staking pool in a hum
 ```
 $ ./near-pool-stats.sh <STAKING_POOL_ACCOUNT_ID>
 ```
+
+## Environment variables
+- `NEAR_ENV` (default: `mainnet`): determines the default RPC address and whether to calculate USD balances. If set to `mainnet`, `testnet` or `betanet` and `NEAR_RPC_ADDRESS` is not set, uses the corresponding official RPC address by default. If set to anything other than `mainnet`, disables conversion to USD.
+- `NEAR_RPC_ADDRESS` (default: `https://rpc.mainnet.near.org`): the RPC node address to use.
+- `NEAR_RPC_PAGE_LIMIT` (default: 100): how many delegator accounts to request from the RPC at a time. The maximum depends on the RPC node configuration. The default value should work well with the official RPC.
+
 ## Example
 
 ```
 $ ./near-pool-stats.sh p2p-org.poolv1.near
-Current date: Sun 21 Mar 01:05:11 UTC 2021
-Current NEAR price: 6.23 USD (source: CoinGecko).
+Current date: Sun 18 Apr 11:20:12 UTC 2021
+Current NEAR price: 4.82 USD (source: CoinGecko).
 
 Viewing delegations data for the staking pool p2p-org.poolv1.near
 
 Pool owner's stake, including validator fees:
-     4510.0265 NEAR  (    28097.4650 USD) -- p2p-org.near
+     7760.9980 NEAR  (    37408.0103 USD) -- p2p-org.near
 
 NEAR Foundation delegation:
-  1011585.7519 NEAR  (  6302179.2343 USD) -- nfendowment10.near (via lockup)
-  1011585.7519 NEAR  (  6302179.2343 USD) -- nfendowment09.near (via lockup)
-  1011585.7519 NEAR  (  6302179.2343 USD) -- nfendowment08.near (via lockup)
-   505308.0942 NEAR  (  3148069.4268 USD) -- nfendowment06.near (via lockup)
-  3540065.3499 NEAR  ( 22054607.1298 USD) -- Subtotal across 4 accounts
+  1019778.1658 NEAR  (  4915330.7591 USD) -- nfendowment10.near (via lockup)
+  1019778.1658 NEAR  (  4915330.7591 USD) -- nfendowment09.near (via lockup)
+  1019778.1658 NEAR  (  4915330.7591 USD) -- nfendowment08.near (via lockup)
+   509400.3751 NEAR  (  2455309.8079 USD) -- nfendowment06.near (via lockup)
+  3568734.8725 NEAR  ( 17201302.0854 USD) -- Subtotal across 4 accounts
 
 Miscellaneous delegations:
-     4121.4977 NEAR  (    25676.9306 USD) -- theodore.near
-     3116.0029 NEAR  (    19412.6980 USD) -- cryptnito.near (via lockup)
-     1199.9961 NEAR  (     7475.9757 USD) -- alias007.near
-     1004.0786 NEAR  (     6255.4096 USD) -- straderb.near
-      727.1055 NEAR  (     4529.8672 USD) -- ashpool.near
-      453.1101 NEAR  (     2822.8759 USD) -- satoshinakamoto.near
-      405.9224 NEAR  (     2528.8965 USD) -- 911f2f91c454e0db41644fdd2c84325486e17ed1104f9de80e6b0fa401ab0cd3
-      390.7484 NEAR  (     2434.3625 USD) -- willypham.near
-      328.3283 NEAR  (     2045.4853 USD) -- mikesa.near
-      306.8349 NEAR  (     1911.5814 USD) -- davirain.near
-      281.1780 NEAR  (     1751.7389 USD) -- loclacenter.near
-      237.4006 NEAR  (     1479.0057 USD) -- lyhung1654.near
-      157.7504 NEAR  (      982.7849 USD) -- seclusionhill.near
-      141.7611 NEAR  (      883.1716 USD) -- slw.near
-      115.7791 NEAR  (      721.3037 USD) -- binaryholder.near
-      110.7286 NEAR  (      689.8391 USD) -- hieunmben100.near
-      100.7677 NEAR  (      627.7827 USD) -- 3e4396b143fbf5b0fa77efd6070e9704b105fb1e02c27912a0224e60f90eda53
-       50.1161 NEAR  (      312.2233 USD) -- bytesun.near
-       14.5780 NEAR  (       90.8209 USD) -- culbecerazvan.near
-        9.6758 NEAR  (       60.2802 USD) -- cda86091de48a9da1db5cb271a2b2949379997381795e5da5c79c2cdf4cdcf86
-        4.0388 NEAR  (       25.1617 USD) -- d54b364dbc181a3f82d6065a2d34f3cc1bc841659c3dc56005acd4bf767b9f4d
-        0.7342 NEAR  (        4.5740 USD) -- sam2020.near
-        0.7120 NEAR  (        4.4357 USD) -- alexb.near
-        0.0000 NEAR  (             0 USD) -- db5577.near
-    13278.8453 NEAR  (    82727.2062 USD) -- Subtotal across 24 accounts
+     5447.6440 NEAR  (    26257.6440 USD) -- theodore.near
+     1534.1153 NEAR  (     7394.4357 USD) -- cryptnito.near (via lockup)
+      732.9940 NEAR  (     3533.0310 USD) -- ashpool.near
+      500.5371 NEAR  (     2412.5888 USD) -- 911f2f91c454e0db41644fdd2c84325486e17ed1104f9de80e6b0fa401ab0cd3
+      456.7797 NEAR  (     2201.6781 USD) -- satoshinakamoto.near
+      393.9129 NEAR  (     1898.6601 USD) -- willypham.near
+      330.9873 NEAR  (     1595.3587 USD) -- mikesa.near
+      301.0837 NEAR  (     1451.2234 USD) -- vitalyevodin.near
+      295.5680 NEAR  (     1424.6377 USD) -- imperfect_triangle.near
+      283.4551 NEAR  (     1366.2535 USD) -- loclacenter.near
+      159.0280 NEAR  (      766.5149 USD) -- seclusionhill.near
+      142.9092 NEAR  (      688.8223 USD) -- slw.near
+      116.7167 NEAR  (      562.5744 USD) -- binaryholder.near
+      100.1576 NEAR  (      482.7596 USD) -- 3e4396b143fbf5b0fa77efd6070e9704b105fb1e02c27912a0224e60f90eda53
+       50.5219 NEAR  (      243.5155 USD) -- bytesun.near
+       37.3098 NEAR  (      179.8332 USD) -- cryptnito.near
+       36.2570 NEAR  (      174.7587 USD) -- comcmipi.near
+       25.0501 NEAR  (      120.7414 USD) -- raekoin.near
+       24.8227 NEAR  (      119.6454 USD) -- hoathienphong.near
+       14.6960 NEAR  (       70.8347 USD) -- culbecerazvan.near
+        9.7541 NEAR  (       47.0147 USD) -- cda86091de48a9da1db5cb271a2b2949379997381795e5da5c79c2cdf4cdcf86
+        8.0285 NEAR  (       38.6973 USD) -- brotanec.near
+        4.0011 NEAR  (       19.2853 USD) -- ilyar.near
+        1.1782 NEAR  (        5.6789 USD) -- cuenzy.near
+        0.7402 NEAR  (        3.5677 USD) -- sam2020.near
+        0.7178 NEAR  (        3.4597 USD) -- alexb.near
+        0.5014 NEAR  (        2.4167 USD) -- sempertx.near
+    11009.4674 NEAR  (    53065.6328 USD) -- Subtotal across 27 accounts
 
-  3557854.2217 NEAR  ( 22165431.8011 USD) -- Total across 29 account(s)
+  3587505.3379 NEAR  ( 17291775.7286 USD) -- Total across 32 non-empty account(s)
+                                             and 3 accounts with zero staked balance
 ```
 ## Bonus Ducks!
 Generate a PDF report using `enscript` and `ps2pdf`, e.g.
