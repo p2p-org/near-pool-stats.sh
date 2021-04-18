@@ -3,8 +3,6 @@
 # Usage: ./near-pool-stats.sh <POOL_ACCOUNT_ID>
 # E.g. ./near-pool-stats.sh p2p-org.poolv1.near
 
-pool_accid="$1"
-
 near_view() (
 	contract_accid="$1"
 	contract_method="$2"
@@ -27,7 +25,7 @@ near_view() (
 	curl -s -X POST \
      		-H 'Content-Type: application/json' \
      		-d "$rpc_params" \
-     		https://rpc.mainnet.near.org \
+     		"$rpc_address" \
 			| jq -r ".result.result | implode"
 )
 
@@ -65,9 +63,13 @@ is_foundation() {
 }
 
 get_near_price() {
-	curl -s -X GET "https://api.coingecko.com/api/v3/simple/price?ids=near&vs_currencies=usd" \
-	        -H  "accept: application/json" \
-		| jq .near.usd
+	if [ "$near_env" = "mainnet" ]; then
+		curl -s -X GET "https://api.coingecko.com/api/v3/simple/price?ids=near&vs_currencies=usd" \
+			-H  "accept: application/json" \
+			| jq .near.usd
+	else
+		printf '%s' "0.0000"
+	fi
 }
 
 is_own() {
@@ -78,8 +80,12 @@ print_accts() (
 	account_ids_and_balances=$(printf '%s' "$1" | tr ';' '\n')
 	accounts_count=$(printf '%s\n' "$account_ids_and_balances" | wc -l)
 	printf '%s\n' "$account_ids_and_balances" | while read -r balance account_id; do
-		balance_usd=$(printf '%s*%s\n' "$balance" "$near_price" | bc)
-		printf "%14s NEAR  (%14s USD) -- %s\n" "$balance" "$balance_usd" "$account_id"
+		if [ "$near_env" = "mainnet" ]; then
+			balance_usd=$(printf '%s*%s\n' "$balance" "$near_price" | bc)
+			printf "%14s NEAR  (%14s USD) -- %s\n" "$balance" "$balance_usd" "$account_id"
+		else
+			printf "%14s NEAR -- %s\n" "$balance" "$account_id"
+		fi
 	done
 	test "$accounts_count" -eq 1 && return
 	total_balance=$(printf '%s\n' "$account_ids_and_balances" | ( 
@@ -90,10 +96,28 @@ print_accts() (
 	       	printf '%s\n' "$_total_balance" 
 		)
 	)
-	total_balance_usd=$(printf '%s*%s\n' "$total_balance" "$near_price" | bc)
-	printf '%14s NEAR  (%14s USD) -- Subtotal across %s accounts\n' \
-		"$total_balance" "$total_balance_usd" "$accounts_count"
+	if [ "$near_env" = "mainnet" ]; then
+		total_balance_usd=$(printf '%s*%s\n' "$total_balance" "$near_price" | bc)
+		printf '%14s NEAR  (%14s USD) -- Subtotal across %s accounts\n' \
+			"$total_balance" "$total_balance_usd" "$accounts_count"
+	else
+		printf '%14s NEAR -- Subtotal across %s accounts\n' \
+			"$total_balance" "$accounts_count"
+	fi
 )
+
+default_rpc_address() {
+	case "$near_env" in
+		mainnet) printf '%s' "https://rpc.mainnet.near.org" ;;
+		testnet) printf '%s' "https://rpc.testnet.near.org" ;;
+		betanet) printf '%s' "https://rpc.betanet.near.org" ;;
+	esac
+}
+
+pool_accid="$1"
+page_limit="${NEAR_RPC_PAGE_LIMIT:-100}"
+near_env="${NEAR_ENV:-mainnet}"
+rpc_address="${NEAR_RPC_ADDRESS:-$(default_rpc_address)}"
 
 own_accid=$(get_pool_owner "$pool_accid")
 all_accounts_json=$(get_accounts)
@@ -131,7 +155,8 @@ for i in $(seq 1 "$non_empty_count"); do
 done
 
 printf "Current date: %s\n" "$(date -u)"
-printf "Current NEAR price: %s USD (source: CoinGecko).\n" "$near_price"
+test "$near_env" = "mainnet" \
+	&& printf "Current NEAR price: %s USD (source: CoinGecko).\n" "$near_price"
 
 printf "\nViewing delegations data for the staking pool %s\n" "$pool_accid"
 
@@ -150,4 +175,8 @@ fi
 
 printf "\n"
 print_accts "$total_stake Total across $non_empty_count non-empty account(s)"
-printf '%45sand %s accounts with zero staked balance\n' ' ' "$empty_count"
+if [ "$near_env" = "mainnet" ]; then
+	printf '%45sand %s accounts with zero staked balance\n' ' ' "$empty_count"
+else
+	printf '%23sand %s accounts with zero staked balance\n' ' ' "$empty_count"
+fi
