@@ -3,13 +3,14 @@
 # Usage: ./near-pool-stats.sh <POOL_ACCOUNT_ID>
 # E.g. ./near-pool-stats.sh p2p-org.poolv1.near
 
-ACCOUNT_POOL="$1"
+pool_accid="$1"
 
 near_view() (
-	CONTRACT_ID="$1"
-	CONTRACT_METHOD="$2"
-	CONTRACT_ARGS=$(printf '%s' "$3" | base64)
-	REQUEST_PARAMS=$(printf '
+	contract_accid="$1"
+	contract_method="$2"
+	contract_args=$(printf '%s' "$3" | base64)
+
+	rpc_params=$(printf '
 	{
 		"jsonrpc": "2.0",
 		"id": "dontcare",
@@ -22,28 +23,29 @@ near_view() (
 			"args_base64": "%s"
 		}
 	}
-	' "$CONTRACT_ID" "$CONTRACT_METHOD" "$CONTRACT_ARGS")
+	' "$contract_accid" "$contract_method" "$contract_args")
 	curl -s -X POST \
      		-H 'Content-Type: application/json' \
-     		-d "$REQUEST_PARAMS" \
+     		-d "$rpc_params" \
      		https://rpc.mainnet.near.org \
 			| jq -r ".result.result | implode"
 )
 
 get_accounts() (
-	LIMIT=100
-	INDEX=0
-	ACCOUNTS='[]'
+	page_limit=${page_limit:-100}
+
+	page_index=0
+	accounts_json='[]'
 	while
-		GET_ACC_ARGS=$(printf '{"limit": %s, "from_index": %s}' "$LIMIT" "$INDEX")
-		NEW_ACCOUNTS=$(near_view "$ACCOUNT_POOL" get_accounts "$GET_ACC_ARGS")
-		COUNT=$(printf '%s' "$NEW_ACCOUNTS" | jq length)
-		INDEX=$(( INDEX + COUNT ))
-		ACCOUNTS=$(printf '%s%s' "$ACCOUNTS" "$NEW_ACCOUNTS" \
+		contract_args=$(printf '{"limit": %s, "from_index": %s}' "$page_limit" "$page_index")
+		new_accounts_json=$(near_view "$pool_accid" get_accounts "$contract_args")
+		new_accounts_count=$(printf '%s' "$new_accounts_json" | jq length)
+		page_index=$(( page_index + new_accounts_count ))
+		accounts_json=$(printf '%s%s' "$accounts_json" "$new_accounts_json" \
 			| jq  -s '.[0]=([.[]]|flatten)|.[0]')
-		test "$COUNT" -eq "$LIMIT"
+		test "$new_accounts_count" -eq "$page_limit"
 	do :; done
-	printf '%s' "$ACCOUNTS"
+	printf '%s' "$accounts_json"
 )
 
 get_pool_owner() {
@@ -54,7 +56,7 @@ is_lockup() {
 	printf '%s' "$1" | grep -Eq '^[[:alnum:]]{40}\.lockup\.near$'
 }
 
-lockup_owner() {
+get_lockup_owner() {
 	near_view "$1" get_owner_account_id | jq -r .
 }
 
@@ -62,89 +64,90 @@ is_foundation() {
 	printf '%s' "$1" | grep -Eq 'nfendowment[[:digit:]]{2}.near'
 }
 
-near_price() {
+get_near_price() {
 	curl -s -X GET "https://api.coingecko.com/api/v3/simple/price?ids=near&vs_currencies=usd" \
 	        -H  "accept: application/json" \
 		| jq .near.usd
 }
 
 is_own() {
-	test "$ACCID_OWN" = "$1"
+	test "$own_accid" = "$1"
 }
 
 print_accts() (
-	ACCOUNTS=$(printf '%s' "$1" | tr ';' '\n')
-	COUNT=$(printf '%s\n' "$ACCOUNTS" | wc -l)
-	printf '%s\n' "$ACCOUNTS" | while read -r ACCBAL ACCID; do
-		ACCBALUSD=$(printf '%s*%s\n' "$ACCBAL" "$NEAR_PRICE" | bc)
-		printf "%14s NEAR  (%14s USD) -- %s\n" "$ACCBAL" "$ACCBALUSD" "$ACCID"
+	account_ids_and_balances=$(printf '%s' "$1" | tr ';' '\n')
+	accounts_count=$(printf '%s\n' "$account_ids_and_balances" | wc -l)
+	printf '%s\n' "$account_ids_and_balances" | while read -r balance account_id; do
+		balance_usd=$(printf '%s*%s\n' "$balance" "$near_price" | bc)
+		printf "%14s NEAR  (%14s USD) -- %s\n" "$balance" "$balance_usd" "$account_id"
 	done
-	test "$COUNT" -eq 1 && return
-	TOTAL=$(printf '%s\n' "$ACCOUNTS" | ( 
-		TOTAL=0; 
-		while IFS=' ' read -r ACCBAL _; do
-			TOTAL=$(printf '%s + %s\n' "$TOTAL" "$ACCBAL" | bc)
+	test "$accounts_count" -eq 1 && return
+	total_balance=$(printf '%s\n' "$account_ids_and_balances" | ( 
+		_total_balance=0; 
+		while IFS=' ' read -r balance _; do
+			_total_balance=$(printf '%s + %s\n' "$_total_balance" "$balance" | bc)
 		done
-	       	printf '%s\n' "$TOTAL" 
+	       	printf '%s\n' "$_total_balance" 
 		)
 	)
-	TOTAL_USD=$(printf '%s*%s\n' "$TOTAL" "$NEAR_PRICE" | bc)
-	printf '%14s NEAR  (%14s USD) -- Subtotal across %s accounts\n' "$TOTAL" "$TOTAL_USD" "$COUNT"
+	total_balance_usd=$(printf '%s*%s\n' "$total_balance" "$near_price" | bc)
+	printf '%14s NEAR  (%14s USD) -- Subtotal across %s accounts\n' \
+		"$total_balance" "$total_balance_usd" "$accounts_count"
 )
 
-ACCID_OWN=$(get_pool_owner "$ACCOUNT_POOL")
-ALL_ACCOUNTS_JSON=$(get_accounts)
-ACCOUNTS_JSON=$(printf '%s' "$ALL_ACCOUNTS_JSON" | jq 'map(select(.staked_balance != "0")) | sort_by(.staked_balance|tonumber) | reverse')
-ACCOUNT_IDS=$(printf '%s' "$ACCOUNTS_JSON" | jq -r '.[]|.account_id')
-ACCOUNT_BALANCES=$(printf '%s' "$ACCOUNTS_JSON" | jq -r '.[]|.staked_balance' | awk '{ printf "%.4f\n", $1 * 10^-24 }')
-TOTAL_COUNT=$(printf '%s' "$ALL_ACCOUNTS_JSON" | jq 'length')
-NON_EMPTY_COUNT=$(printf '%s' "$ACCOUNTS_JSON" | jq 'length')
-EMPTY_COUNT=$(( TOTAL_COUNT - NON_EMPTY_COUNT ))
-NEAR_PRICE=$(near_price)
+own_accid=$(get_pool_owner "$pool_accid")
+all_accounts_json=$(get_accounts)
+accounts_json=$(printf '%s' "$all_accounts_json" | jq 'map(select(.staked_balance != "0")) | sort_by(.staked_balance|tonumber) | reverse')
+account_ids=$(printf '%s' "$accounts_json" | jq -r '.[]|.account_id')
+account_balances=$(printf '%s' "$accounts_json" | jq -r '.[]|.staked_balance' | awk '{ printf "%.4f\n", $1 * 10^-24 }')
+all_accounts_count=$(printf '%s' "$all_accounts_json" | jq 'length')
+non_empty_count=$(printf '%s' "$accounts_json" | jq 'length')
+empty_count=$(( all_accounts_count - non_empty_count ))
+near_price=$(get_near_price)
 
-OWN_ACCOUNTS=""
-FND_ACCOUNTS=""
-DELEG_ACCOUNTS=""
-TOTAL_TOTAL=0
+own_accounts=""
+fnd_accounts=""
+deleg_accounts=""
+total_stake=0
 
-for i in $(seq 1 "$NON_EMPTY_COUNT"); do
-	ACCID=$(printf '%s' "$ACCOUNT_IDS" | sed -n "${i}p")
-	ACCBAL=$(printf '%s' "$ACCOUNT_BALANCES" | sed -n "${i}p")
-	ACCFMT="$ACCBAL $ACCID"
+for i in $(seq 1 "$non_empty_count"); do
+	account_id=$(printf '%s' "$account_ids" | sed -n "${i}p")
+	balance=$(printf '%s' "$account_balances" | sed -n "${i}p")
+	account_data="$balance $account_id"
 
-	if is_lockup "$ACCID"; then
-		ACCID=$(lockup_owner "$ACCID")
-		ACCFMT="$ACCBAL $ACCID (via lockup)"
+	if is_lockup "$account_id"; then
+		account_id=$(get_lockup_owner "$account_id")
+		account_data="$balance $account_id (via lockup)"
 	fi
 
-	TOTAL_TOTAL=$(printf '%s + %s\n' "$TOTAL_TOTAL" "$ACCBAL" | bc)
-	if is_own "$ACCID"; then 
-		OWN_ACCOUNTS="${OWN_ACCOUNTS}${ACCFMT};"
-	elif is_foundation "$ACCID"; then
-		FND_ACCOUNTS="${FND_ACCOUNTS}${ACCFMT};"
+	total_stake=$(printf '%s + %s\n' "$total_stake" "$balance" | bc)
+	if is_own "$account_id"; then 
+		own_accounts="${own_accounts}${account_data};"
+	elif is_foundation "$account_id"; then
+		fnd_accounts="${fnd_accounts}${account_data};"
 	else
-		DELEG_ACCOUNTS="${DELEG_ACCOUNTS}${ACCFMT};"
+		deleg_accounts="${deleg_accounts}${account_data};"
 	fi
 done
 
 printf "Current date: %s\n" "$(date -u)"
-printf "Current NEAR price: %s USD (source: CoinGecko).\n" "$NEAR_PRICE"
+printf "Current NEAR price: %s USD (source: CoinGecko).\n" "$near_price"
 
-printf "\nViewing delegations data for the staking pool %s\n" "$ACCOUNT_POOL"
+printf "\nViewing delegations data for the staking pool %s\n" "$pool_accid"
 
 printf "\nPool owner's stake, including validator fees:\n"
-print_accts "$OWN_ACCOUNTS"
+print_accts "$own_accounts"
 
-if [ -n "$FND_ACCOUNTS" ]; then
+if [ -n "$fnd_accounts" ]; then
        printf "\nNEAR Foundation delegation:\n"
-	print_accts "$FND_ACCOUNTS"
+	print_accts "$fnd_accounts"
 fi
 
-if [ -n "$DELEG_ACCOUNTS" ]; then
+if [ -n "$deleg_accounts" ]; then
 	printf "\nMiscellaneous delegations:\n"
-	print_accts "$DELEG_ACCOUNTS"
+	print_accts "$deleg_accounts"
 fi
 
 printf "\n"
-print_accts "$TOTAL_TOTAL Total across $NON_EMPTY_COUNT non-empty account(s)"
-printf '%45sand %s accounts with zero staked balance\n' ' ' "$EMPTY_COUNT"
+print_accts "$total_stake Total across $non_empty_count non-empty account(s)"
+printf '%45sand %s accounts with zero staked balance\n' ' ' "$empty_count"
