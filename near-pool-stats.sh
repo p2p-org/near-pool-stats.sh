@@ -1,7 +1,12 @@
 #!/bin/sh
 
-# Usage: ./near-pool-stats.sh <POOL_ACCOUNT_ID>
+# Usage: ./near-pool-stats.sh <POOL_ID>
 # E.g. ./near-pool-stats.sh p2p-org.poolv1.near
+
+die() {
+	printf '%s\n' "$1" 1>&2
+	exit 1;
+}
 
 near_view() (
 	contract_accid="$1"
@@ -135,6 +140,10 @@ pool_accid="$1"
 page_limit="${NEAR_RPC_PAGE_LIMIT:-100}"
 near_env="${NEAR_ENV:-mainnet}"
 rpc_address="${NEAR_RPC_ADDRESS:-$(default_rpc_address)}"
+usage="Usage: $0 <pool_id>
+    pool_id: The account ID of the staking pool"
+
+test -z "$pool_accid" && die "$0: no staking pool specified"
 
 own_accid=$(get_pool_owner "$pool_accid")
 all_accounts_json=$(get_accounts)
