@@ -123,19 +123,11 @@ default_rpc_address() {
 	esac
 }
 
-print_top_hdr() {
+print_hdr() {
 	if [ "$near_env" = "mainnet" ]; then
 		printf '%14s |%16s | %s\n' "NEAR balance" "Value in USD" "Account ID / Comment"
 	else
 		printf '%14s | %s\n' "NEAR balance" "Account ID / Comment"
-	fi
-}
-
-print_hdr() {
-	if [ "$near_env" = "mainnet" ]; then
-		printf '%14s  %16s   %s\n' ' ' ' ' "$1"
-	else
-		printf '%14s   %s\n' ' ' "$1"
 	fi
 }
 
@@ -185,7 +177,7 @@ test "$near_env" = "mainnet" \
 
 printf "Viewing delegations data for the staking pool %s\n\n" "$pool_accid"
 
-print_top_hdr
+print_hdr
 print_separator
 
 print_accts "Pool owner's stake" "$own_accounts"
