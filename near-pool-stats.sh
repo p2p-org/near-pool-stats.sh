@@ -88,7 +88,7 @@ print_balance() (
 	balance="$1"
 	comment="$2"
 	if [ "$near_env" = "mainnet" ]; then
-		balance_usd=$(printf '%s*%s\n' "$balance" "$near_price" | bc)
+		balance_usd=$(printf '%s %s' "$balance" "$near_price" | awk '{ printf "%0.2f", $1 * $2 }')
 		printf "%14s |%16s | %-64s\n" "$balance" "$balance_usd" "$comment"
 	else
 		printf "%14s | %-64s\n" "$balance" "$comment"
@@ -148,7 +148,7 @@ own_accid=$(get_pool_owner "$pool_accid")
 all_accounts_json=$(get_accounts)
 accounts_json=$(printf '%s' "$all_accounts_json" | jq 'map(select(.staked_balance != "0")) | sort_by(.staked_balance|tonumber) | reverse')
 account_ids=$(printf '%s' "$accounts_json" | jq -r '.[]|.account_id')
-account_balances=$(printf '%s' "$accounts_json" | jq -r '.[]|.staked_balance' | awk '{ printf "%.4f\n", $1 * 10^-24 }')
+account_balances=$(printf '%s' "$accounts_json" | jq -r '.[]|.staked_balance' | awk '{ printf "%0.4f\n", $1 * 10^-24 }')
 all_accounts_count=$(printf '%s' "$all_accounts_json" | jq 'length')
 non_empty_count=$(printf '%s' "$accounts_json" | jq 'length')
 empty_count=$(( all_accounts_count - non_empty_count ))
