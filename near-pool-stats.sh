@@ -110,8 +110,9 @@ print_accts() (
 	       	printf '%s\n' "$_total_balance" 
 		)
 	)
+	total_percent=$(printf '%s %s' "$total_balance" "$total_stake" | awk '{ printf "%0.2f", $1 / $2 * 100 }')
 	print_separator
-	print_balance "$total_balance" "$comment (accounts: $accounts_count)"
+	print_balance "$total_balance" "$comment, $total_percent% of total stake, accounts: $accounts_count"
 )
 
 default_rpc_address() {
