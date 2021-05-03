@@ -76,18 +76,32 @@ is_own() {
 	test "$own_accid" = "$1"
 }
 
+print_separator() {
+	if [ "$near_env" = "mainnet" ]; then
+		printf '%14s +%16s + %73s\n' | tr ' ' '-'
+	else
+		printf '%14s + %73s\n' | tr ' ' '-'
+	fi
+}
+
+print_balance() (
+	balance="$1"
+	comment="$2"
+	if [ "$near_env" = "mainnet" ]; then
+		balance_usd=$(printf '%s*%s\n' "$balance" "$near_price" | bc)
+		printf "%14s |%16s | %-64s\n" "$balance" "$balance_usd" "$comment"
+	else
+		printf "%14s | %-64s\n" "$balance" "$comment"
+	fi
+)
+
 print_accts() (
-	account_ids_and_balances=$(printf '%s' "$1" | tr ';' '\n')
+	comment="$1"
+	account_ids_and_balances=$(printf '%s' "$2" | tr ';' '\n')
 	accounts_count=$(printf '%s\n' "$account_ids_and_balances" | wc -l)
 	printf '%s\n' "$account_ids_and_balances" | while read -r balance account_id; do
-		if [ "$near_env" = "mainnet" ]; then
-			balance_usd=$(printf '%s*%s\n' "$balance" "$near_price" | bc)
-			printf "%14s NEAR  (%14s USD) -- %s\n" "$balance" "$balance_usd" "$account_id"
-		else
-			printf "%14s NEAR -- %s\n" "$balance" "$account_id"
-		fi
+		print_balance "$balance" "$account_id"
 	done
-	test "$accounts_count" -eq 1 && return
 	total_balance=$(printf '%s\n' "$account_ids_and_balances" | ( 
 		_total_balance=0; 
 		while IFS=' ' read -r balance _; do
@@ -96,14 +110,8 @@ print_accts() (
 	       	printf '%s\n' "$_total_balance" 
 		)
 	)
-	if [ "$near_env" = "mainnet" ]; then
-		total_balance_usd=$(printf '%s*%s\n' "$total_balance" "$near_price" | bc)
-		printf '%14s NEAR  (%14s USD) -- Subtotal across %s accounts\n' \
-			"$total_balance" "$total_balance_usd" "$accounts_count"
-	else
-		printf '%14s NEAR -- Subtotal across %s accounts\n' \
-			"$total_balance" "$accounts_count"
-	fi
+	print_separator
+	print_balance "$total_balance" "$comment (accounts: $accounts_count)"
 )
 
 default_rpc_address() {
@@ -112,6 +120,22 @@ default_rpc_address() {
 		testnet) printf '%s' "https://rpc.testnet.near.org" ;;
 		betanet) printf '%s' "https://rpc.betanet.near.org" ;;
 	esac
+}
+
+print_top_hdr() {
+	if [ "$near_env" = "mainnet" ]; then
+		printf '%14s |%16s | %s\n' "NEAR balance" "Value in USD" "Account ID / Comment"
+	else
+		printf '%14s | %s\n' "NEAR balance" "Account ID / Comment"
+	fi
+}
+
+print_hdr() {
+	if [ "$near_env" = "mainnet" ]; then
+		printf '%14s  %16s   %s\n' ' ' ' ' "$1"
+	else
+		printf '%14s   %s\n' ' ' "$1"
+	fi
 }
 
 pool_accid="$1"
@@ -141,7 +165,7 @@ for i in $(seq 1 "$non_empty_count"); do
 
 	if is_lockup "$account_id"; then
 		account_id=$(get_lockup_owner "$account_id")
-		account_data="$balance $account_id (via lockup)"
+		account_data="$balance $account_id (lockup)"
 	fi
 
 	total_stake=$(printf '%s + %s\n' "$total_stake" "$balance" | bc)
@@ -158,25 +182,23 @@ printf "Current date: %s\n" "$(date -u)"
 test "$near_env" = "mainnet" \
 	&& printf "Current NEAR price: %s USD (source: CoinGecko).\n" "$near_price"
 
-printf "\nViewing delegations data for the staking pool %s\n" "$pool_accid"
+printf "Viewing delegations data for the staking pool %s\n\n" "$pool_accid"
 
-printf "\nPool owner's stake, including validator fees:\n"
-print_accts "$own_accounts"
+print_top_hdr
+print_separator
+
+print_accts "Pool owner's stake" "$own_accounts"
 
 if [ -n "$fnd_accounts" ]; then
-       printf "\nNEAR Foundation delegation:\n"
-	print_accts "$fnd_accounts"
+	print_separator
+	print_accts "NEAR Foundation delegation" "$fnd_accounts"
 fi
 
 if [ -n "$deleg_accounts" ]; then
-	printf "\nMiscellaneous delegations:\n"
-	print_accts "$deleg_accounts"
+	print_separator
+	print_accts "Miscellaneous delegations" "$deleg_accounts"
 fi
 
-printf "\n"
-print_accts "$total_stake Total across $non_empty_count non-empty account(s)"
-if [ "$near_env" = "mainnet" ]; then
-	printf '%45sand %s accounts with zero staked balance\n' ' ' "$empty_count"
-else
-	printf '%23sand %s accounts with zero staked balance\n' ' ' "$empty_count"
-fi
+print_separator
+print_balance "$total_stake" "Total (accounts: $non_empty_count)"
+printf '\n'
