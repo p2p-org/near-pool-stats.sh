@@ -89,6 +89,14 @@ print_separator() {
 	fi
 }
 
+print_empty() {
+	if [ "$near_env" = "mainnet" ]; then
+		printf '%14s |%16s |\n'
+	else
+		printf '%14s |\n'
+	fi
+}
+
 print_balance() (
 	balance="$1"
 	comment="$2"
@@ -116,7 +124,7 @@ print_accts() (
 		)
 	)
 	total_percent=$(printf '%s %s' "$total_balance" "$total_stake" | awk '{ printf "%0.2f", $1 / $2 * 100 }')
-	print_separator
+	print_empty
 	print_balance "$total_balance" "$comment, $total_percent% of total stake, accounts: $accounts_count"
 )
 
