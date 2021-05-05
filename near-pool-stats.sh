@@ -125,7 +125,7 @@ print_accts() (
 	)
 	total_percent=$(printf '%s %s' "$total_balance" "$total_stake" | awk '{ printf "%0.2f", $1 / $2 * 100 }')
 	print_empty
-	print_balance "$total_balance" "$comment, $total_percent% of total stake, accounts: $accounts_count"
+	print_balance "$total_balance" "$total_percent% of total stake, $accounts_count account(s) ($comment)"
 )
 
 default_rpc_address() {
@@ -197,7 +197,7 @@ printf "Viewing delegations data for the staking pool %s\n\n" "$pool_accid"
 print_hdr
 print_separator
 
-print_accts "Pool owner's stake" "$own_accounts"
+print_accts "pool owner's stake" "$own_accounts"
 
 if [ -n "$fnd_accounts" ]; then
 	print_separator
@@ -206,9 +206,9 @@ fi
 
 if [ -n "$deleg_accounts" ]; then
 	print_separator
-	print_accts "Miscellaneous delegations" "$deleg_accounts"
+	print_accts "miscellaneous delegations" "$deleg_accounts"
 fi
 
 print_separator
-print_balance "$total_stake" "Total (accounts: $non_empty_count)"
+print_balance "$total_stake" "100% of total stake, $non_empty_count account(s)"
 printf '\n'
